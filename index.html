@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172b3a">
+  <title>Keller-Labor – Schimmel-Früherkennung</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f6f8; --card: #fff; --ink: #172b3a; --muted: #647482;
+      --line: #dce4e9; --soft: #edf2f5; --accent: #287b72;
+      --green: #26865f; --yellow: #b58a2c; --orange: #cf7432; --red: #bd4545;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 16px 48px; background: var(--bg); color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 760px; margin: 0 auto; }
+    .app { background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+      padding: clamp(20px, 4vw, 32px); box-shadow: 0 12px 35px #172b3a0b; }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
+    h1 { margin:0; font-size: clamp(1.7rem, 4vw, 2.2rem); letter-spacing:-.04em; }
+    .subtitle { margin:3px 0 0; color:var(--muted); }
+    .version { white-space:nowrap; background:var(--soft); color:var(--muted); border-radius:999px; padding:5px 10px; font-size:.8rem; }
+    h2 { font-size:1.08rem; margin:0 0 14px; }
+    .section { border-top:1px solid var(--line); padding-top:22px; margin-top:22px; }
+    .fields { display:grid; grid-template-columns:1fr; gap:14px; }
+    label { display:block; font-weight:600; margin-bottom:6px; font-size:.94rem; }
+    input { width:100%; padding:12px 13px; border:1px solid #cbd6dd; border-radius:10px; background:white;
+      color:var(--ink); font:inherit; font-size:1.05rem; outline:none; }
+    input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #287b721c; }
+    .hint, .muted { color:var(--muted); font-size:.85rem; }
+    .hint { margin:9px 0 14px; }
+    button { width:100%; border:1px solid #cbd6dd; background:white; color:var(--ink); border-radius:10px;
+      padding:11px 14px; font:600 .95rem inherit; cursor:pointer; }
+    button:hover { background:var(--soft); }
+    .risk-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .badge { display:inline-block; padding:6px 11px; border-radius:999px; font-size:.86rem; font-weight:700;
+      background:#e9f4ee; color:var(--green); }
+    .percent { font-size:1.75rem; font-weight:750; font-variant-numeric:tabular-nums; }
+    .track { height:14px; background:#e8edf0; border-radius:99px; overflow:hidden; margin:13px 0 7px; }
+    .fill { height:100%; width:0; border-radius:99px; transition:width .2s ease; background:var(--green); }
+    .ticks { display:flex; justify-content:space-between; color:var(--muted); font-size:.72rem; }
+    .explain { margin:13px 0 7px; }
+    .metrics { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .metric { background:var(--soft); border-radius:13px; padding:15px; min-width:0; }
+    .metric-label { display:block; color:var(--muted); font-size:.82rem; }
+    .metric-value { display:block; font-size:1.55rem; font-weight:750; margin-top:5px; font-variant-numeric:tabular-nums; }
+    .delta-card { border:1px solid var(--line); border-radius:13px; padding:16px; margin-top:12px; }
+    .delta-value { font-size:1.55rem; font-weight:750; margin:3px 0; font-variant-numeric:tabular-nums; }
+    .note { margin:18px 0 0; font-size:.78rem; color:var(--muted); }
+    .error { color:var(--red); font-weight:650; }
+    @media (min-width:600px) { .fields { grid-template-columns:1fr 1fr; } .fields .field:last-child { grid-column:1/-1; } }
+    @media (max-width:430px) { .metrics { grid-template-columns:1fr; } header { flex-direction:column; } }
+  </style>
+</head>
+<body>
+<main>
+  <article class="app">
+    <header>
+      <div>
+        <h1>Keller-Labor</h1>
+        <p class="subtitle">Bauphysikalische Schimmel-Früherkennung</p>
+      </div>
+      <span class="version">Version 2.4</span>
+    </header>
+
+    <section aria-labelledby="input-title">
+      <h2 id="input-title">Messwerte</h2>
+      <div class="fields">
+        <div class="field">
+          <label for="humidity">Relative Luftfeuchtigkeit im Keller (%)</label>
+          <input id="humidity" type="text" inputmode="decimal" value="55" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="room">Raumtemperatur (°C)</label>
+          <input id="room" type="text" inputmode="decimal" value="18" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="wall">Temperatur der kältesten Wandstelle (°C)</label>
+          <input id="wall" type="text" inputmode="decimal" value="15" autocomplete="off">
+        </div>
+      </div>
+      <p class="hint">Dezimalkomma und Dezimalpunkt sind möglich.</p>
+      <button id="reset" type="button">↺&nbsp; Werte zurücksetzen</button>
+    </section>
+
+    <section class="section" aria-labelledby="risk-title" aria-live="polite">
+      <h2 id="risk-title">Schimmelrisiko</h2>
+      <div id="risk-content">
+        <div class="risk-head">
+          <span class="badge" id="risk-badge">Günstige Bedingungen</span>
+          <span class="percent" id="surface-value">67,0 %</span>
+        </div>
+        <div class="track" role="progressbar" aria-label="Relative Luftfeuchtigkeit an der Wand" aria-valuemin="0" aria-valuemax="100" aria-valuenow="67" id="progress">
+          <div class="fill" id="fill"></div>
+        </div>
+        <div class="ticks"><span>0 %</span><span>70 %</span><span>75 %</span><span>80 %</span><span>85 %</span><span>100 %</span></div>
+        <p class="explain" id="risk-explanation"></p>
+        <p class="muted" id="distance"></p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="dew-title" aria-live="polite">
+      <h2 id="dew-title">Taupunktanalyse</h2>
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-label">Taupunkt der Raumluft</span>
+          <strong class="metric-value" id="dew-value">8,9 °C</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Kälteste Wandstelle</span>
+          <strong class="metric-value" id="wall-value">15,0 °C</strong>
+        </div>
+      </div>
+      <div class="delta-card">
+        <strong>Temperaturabstand zum Taupunkt</strong>
+        <div class="delta-value" id="delta-value">6,1 °C</div>
+        <p class="explain" id="delta-explanation"></p>
+      </div>
+    </section>
+
+    <p class="note">Berechnung nach der Magnus-Formel. Die Risikostufen sind praktische Orientierungswerte und keine amtlichen UBA-Kategorien. Das tatsächliche Schimmelrisiko hängt auch von Dauer, Material und weiteren Bedingungen ab.</p>
+  </article>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fields = ["humidity", "room", "wall"];
+  const defaults = { humidity: "55", room: "18", wall: "15" };
+  const parse = value => Number(String(value).trim().replace(",", "."));
+  const fmt = (value, digits = 1) => value.toLocaleString("de-DE", {
+    minimumFractionDigits: digits, maximumFractionDigits: digits
+  });
+  const saturation = temp => 6.112 * Math.exp(17.62 * temp / (243.12 + temp));
+
+  function assess() {
+    const rh = parse($("humidity").value);
+    const room = parse($("room").value);
+    const wall = parse($("wall").value);
+    const valid = fields.every(id => $(id).value.trim() !== "") &&
+      Number.isFinite(rh) && Number.isFinite(room) && Number.isFinite(wall) &&
+      rh > 0 && rh <= 100 && room >= -40 && room <= 60 && wall >= -40 && wall <= 60;
+
+    if (!valid) {
+      $("risk-content").innerHTML = '<p class="error">Bitte gültige Werte eingeben: Luftfeuchtigkeit über 0 bis 100 %, Temperaturen jeweils von −40 bis 60 °C.</p>';
+      $("dew-value").textContent = "–";
+      $("wall-value").textContent = "–";
+      $("delta-value").textContent = "–";
+      $("delta-explanation").textContent = "Die Taupunktanalyse wird angezeigt, sobald alle Eingaben gültig sind.";
+      return;
+    }
+
+    const vapor = (rh / 100) * saturation(room);
+    const ln = Math.log(vapor / 6.112);
+    const dew = (243.12 * ln) / (17.62 - ln);
+    const surfaceRh = 100 * vapor / saturation(wall);
+    const delta = wall - dew;
+
+    let label, explanation, color;
+    if (surfaceRh >= 100) {
+      label = "Kondensation möglich";
+      explanation = "Die berechnete relative Luftfeuchtigkeit an der Wand erreicht 100 % oder mehr. Kondensation ist möglich; die Oberfläche ist besonders kritisch.";
+      color = "var(--red)";
+    } else if (surfaceRh < 70) {
+      label = "Günstige Bedingungen";
+      explanation = "Die berechnete relative Luftfeuchtigkeit an der kältesten Wandstelle liegt unter 70 %. Das sind grundsätzlich günstige Bedingungen für die Vermeidung von Schimmelwachstum.";
+      color = "var(--green)";
+    } else if (surfaceRh < 75) {
+      label = "Erste Feuchtewarnung";
+      explanation = "Die Feuchtigkeit an der Wand nähert sich einem kritischen Bereich. Beobachte die Entwicklung und achte auf regelmäßigen Feuchteschutz und ausreichende Lüftung.";
+      color = "var(--yellow)";
+    } else if (surfaceRh < 80) {
+      label = "Erhöhte Schimmelgefährdung";
+      explanation = "Die Wandoberfläche ist bereits deutlich feuchter. Bei länger anhaltenden Bedingungen kann das Schimmelwachstum begünstigt werden.";
+      color = "var(--orange)";
+    } else if (surfaceRh < 85) {
+      label = "Schimmelkritischer Bereich";
+      explanation = "Die Wandoberfläche befindet sich im schimmelkritischen Bereich. Prüfe mögliche Feuchteursachen und reduziere die Feuchtebelastung zeitnah.";
+      color = "var(--red)";
+    } else {
+      label = "Stark erhöhte Feuchtebelastung";
+      explanation = "Die Oberflächenfeuchtigkeit ist stark erhöht. Bei anhaltenden Bedingungen besteht eine deutliche Gefahr für Schimmelwachstum. Ursachen sollten zeitnah untersucht werden.";
+      color = "var(--red)";
+    }
+
+    $("risk-content").innerHTML = `
+      <div class="risk-head">
+        <span class="badge" id="risk-badge">${label}</span>
+        <span class="percent" id="surface-value">${fmt(surfaceRh)} %</span>
+      </div>
+      <div class="track" role="progressbar" aria-label="Relative Luftfeuchtigkeit an der Wand" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, surfaceRh)}">
+        <div class="fill" style="width:${Math.max(0, Math.min(100, surfaceRh))}%;background:${color}"></div>
+      </div>
+      <div class="ticks"><span>0 %</span><span>70 %</span><span>75 %</span><span>80 %</span><span>85 %</span><span>100 %</span></div>
+      <p class="explain">${explanation}</p>
+      <p class="muted">Abstand zur 80-%-Marke: ${fmt(80 - surfaceRh)} Prozentpunkte</p>`;
+    $("dew-value").textContent = `${fmt(dew)} °C`;
+    $("wall-value").textContent = `${fmt(wall)} °C`;
+    $("delta-value").textContent = `${fmt(delta)} °C`;
+    if (delta <= 0) {
+      $("delta-explanation").textContent = "Kein Puffer mehr: Die Wandtemperatur liegt am oder unter dem Taupunkt. Kondensation ist möglich.";
+      $("delta-value").style.color = "var(--red)";
+    } else if (delta < 3) {
+      $("delta-explanation").textContent = "Nur noch ein kleiner Puffer: Die Wand liegt knapp über dem Taupunkt. Schon eine geringe Abkühlung oder höhere Luftfeuchtigkeit kann die Situation kritisch machen.";
+      $("delta-value").style.color = "var(--orange)";
+    } else if (delta < 6) {
+      $("delta-explanation").textContent = "Ein ausreichender, aber nicht sehr großer Puffer: Die Wand liegt über dem Taupunkt. Bei steigender Luftfeuchtigkeit oder sinkender Wandtemperatur kann der Abstand kleiner werden.";
+      $("delta-value").style.color = "var(--yellow)";
+    } else {
+      $("delta-explanation").textContent = "Ein großer Puffer: Die Wand ist deutlich wärmer als der Taupunkt. Kondensation ist unter den aktuellen Bedingungen eher unwahrscheinlich.";
+      $("delta-value").style.color = "var(--green)";
+    }
+  }
+
+  fields.forEach(id => $(id).addEventListener("input", assess));
+  $("reset").addEventListener("click", () => {
+    fields.forEach(id => $(id).value = defaults[id]);
+    assess();
+  });
+  assess();
+})();
+</script>
+</body>
+</html>
